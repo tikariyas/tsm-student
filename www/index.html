@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TSM</title>
+<style>
+@font-face{font-family:LibSerif;src:url(fonts/LiberationSerif-Regular.ttf);font-weight:400;font-style:normal}
+@font-face{font-family:LibSerif;src:url(fonts/LiberationSerif-Bold.ttf);font-weight:700;font-style:normal}
+@font-face{font-family:LibSerif;src:url(fonts/LiberationSerif-Italic.ttf);font-weight:400;font-style:italic}
+@font-face{font-family:LibSerif;src:url(fonts/LiberationSerif-BoldItalic.ttf);font-weight:700;font-style:italic}
+@font-face{font-family:LoraI;src:url(fonts/Lora-Italic-Variable.ttf);font-weight:400 700;font-style:italic}
+:root{--ind:#3A3283;--ink:#111;--tint:#F2F0FF;box-sizing:border-box}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{background:#fff;color:var(--ink);font:16px Georgia,serif;padding-top:env(safe-area-inset-top,0px)}
+#app{min-height:100%;display:flex;flex-direction:column;padding-bottom:64px}
+button,input{font:16px sans-serif}
+.hd{background:var(--ind);color:#fff;padding:22px 20px 14px;display:flex;align-items:center;gap:14px}.hd img{width:52px;height:52px;border-radius:10px;background:#fff}.hd small{font:14px sans-serif;display:block}.hd h1{margin:2px 0 0;font-size:25px}
+.pad{padding:12px 20px}.card{background:var(--tint);border:2px solid var(--ind);border-radius:14px;padding:14px;margin-top:10px}
+.btn{min-height:44px;padding:0 14px;border:0;border-radius:10px;background:#0069B4;color:#fff;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.btn.g{background:#00793A}.btn.r{background:#fff;color:#B00000}.btn.i{background:var(--ind)}
+.sm{font:13px/1.45 sans-serif}.row{display:flex;align-items:center;gap:10px}.grow{flex:1;min-width:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.tile{border-radius:14px;padding:14px;min-height:74px;color:#fff;cursor:pointer}.tile b{font-size:17px;display:block}.tile span{font:13px sans-serif}
+nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:#fff;border-top:2px solid var(--ink);padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;min-height:56px;border:0;background:#fff;font:15px sans-serif;border-top:4px solid transparent}nav button.on{color:var(--ind);font-weight:700;border-top-color:var(--ind)}
+label{display:block;margin-top:14px;font:700 14px sans-serif}input[type=tel],input[type=password]{display:block;width:100%;height:50px;margin-top:6px;border:2px solid var(--ink);border-radius:10px;padding:0 14px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.cal i{font-style:normal;display:flex;align-items:center;justify-content:center;height:38px;border-radius:8px;font:700 14px sans-serif}
+.cal i.p{background:#00793A;color:#fff}.cal i.a{background:#D91C26;color:#fff}.cal i.l{background:#FF9A1F}.cal i.s{background:#D9D9D9}.cal i.f{background:#BFE6FF}.cal i.o{border:2px solid #BDBDBD;font-weight:400}
+.hdr7{font:700 12px sans-serif;text-align:center;margin-bottom:6px}
+.err{color:#B00000;font:700 14px sans-serif;margin-top:10px;text-align:center}
+</style>
+<script src="firebase-config.js"></script>
+<script src="lib/firebase-app-compat.js"></script>
+<script src="lib/firebase-auth-compat.js"></script>
+<script src="lib/firebase-firestore-compat.js"></script>
+<script src="lib/qrcode.js"></script>
+<script src="js/cert.js"></script>
+<script src="lib/jspdf.umd.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+var CP=(window.Capacitor&&window.Capacitor.Plugins)||{},TARGET=12,CIN='U88900MH2025NPL454435',MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var auth=null,db=null,U=null,D=null,C={},view='home',sel=0,msg='',loading=false,navStack=[],navSig='home',popping=false;
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function pd(k){return new Date(+k.slice(0,4),+k.slice(5,7)-1,+k.slice(8,10))}
+function fd(d){return d?d.split('-').reverse().join('/'):''}
+function sd(k){var d=pd(k);return d.getDate()+' '+MN[d.getMonth()]}
+function dstr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function dispDate(k){var d=pd(k);return d.getDate()+' '+MN[d.getMonth()]+' '+d.getFullYear()}
+function money(n){return '\u20b9'+Number(n||0).toLocaleString('en-IN')}
+function setMsg(m){msg=m;render()}
+/* ---------- login ---------- */
+function fbReady(){return !!(window.firebase&&window.TSM_FB&&window.TSM_FB.apiKey)}
+function boot(){render();if(!fbReady()){return}
+  firebase.initializeApp(window.TSM_FB);auth=firebase.auth();db=firebase.firestore();try{db.enablePersistence({synchronizeTabs:false}).catch(function(){})}catch(e){}
+  auth.onAuthStateChanged(function(u){U=u;if(u)load();else{D=null;C={};render()}})}
+async function doLogin(){var p=document.getElementById('lp').value.replace(/\D/g,''),w=document.getElementById('lw').value;
+  if(p.length!==10){setMsg('Please enter your 10-digit phone number.');return}if(!w){setMsg('Please enter your password.');return}
+  try{msg='';await auth.signInWithEmailAndPassword(p+'@tsm.app',w)}catch(e){setMsg(e.code==='auth/network-request-failed'?'No internet connection.':'Wrong phone number or password.')}}
+async function load(){loading=true;render();
+  try{var ph=U.email.split('@')[0],s=await db.collection('students').doc(ph).get();D=s.exists?s.data():null;if(D)D.phone=ph;var c=await db.collection('app').doc('content').get();C=c.exists?c.data():{}}catch(e){msg='Could not load your details. Please check the internet.'}
+  loading=false;render()}
+function logout(){if(auth)auth.signOut();view='home';navStack=[];navSig='home'}
+async function chPwd(){var a=prompt('New password (at least 6 characters)');if(!a)return;if(a.length<6){alert('The password is too short.');return}
+  try{await U.updatePassword(a);alert('Password changed.')}catch(e){alert(e.code==='auth/requires-recent-login'?'Please log out, log in again, and then change the password.':'Could not change the password.')}}
+/* ---------- views ---------- */
+var LOGO='img/logo.png',FATHER='img/father.png';
+function about(sz){return `<div class='card row' style='gap:12px'><img src='${FATHER}' alt='' style='width:${sz}px;height:auto;flex:none'><div class='sm'><b style='font-size:15px'>B. S. Tikariya Cultural Foundation (R)</b><br>Run in honour of Shree B. S. Tikariya<br>CIN: ${CIN}</div></div>`}
+function head(t,s){return `<div class='hd'><img src='${LOGO}' alt='TSM'><div><small>${esc(s||'')}</small><h1>${esc(t)}</h1></div></div>`}
+function nav(){return `<nav>${[['home','Home'],['att','Attendance'],['learn','Learn'],['prof','Profile']].map(x=>`<button class='${view===x[0]?'on':''}' onclick='go("${x[0]}")'>${x[1]}</button>`).join('')}</nav>`}
+function go(v){view=v;render();scrollTo(0,0)}
+function vLogin(){return `<div style='padding:40px 26px 22px;display:flex;flex-direction:column;align-items:center;flex:1'><img src='${LOGO}' alt='TSM' style='width:128px;height:128px'><h1 style='margin:14px 0 2px;font-size:26px;text-align:center;color:var(--ind)'>Tikariya\u2019s School of Music</h1><p style='margin:0 0 6px;font:700 15px sans-serif'>Student and parent login</p>
+<div style='align-self:stretch'><label>Phone number<input id='lp' type='tel' placeholder='10-digit number'></label><label>Password<input id='lw' type='password' placeholder='Password'></label>
+<button class='btn i' style='width:100%;height:54px;margin-top:18px;font-size:18px' onclick='doLogin()'>Log in</button><div class='err'>${esc(msg)}</div>
+<p class='sm' style='text-align:center;color:#333'>Forgot your password? Please ask your teacher.</p></div><div style='flex:1'></div><div style='align-self:stretch'>${about(76)}</div></div>`}
+function cur(e){return e&&e.cycles&&e.cycles.length?e.cycles[e.cycles.length-1]:null}
+function vHome(){var e=D.enrol[sel]||D.enrol[0]||{},c=cur(e),pct=c?Math.min(100,Math.round(100*c.p/TARGET)):0;
+  var ups=(C.updates||[]).slice(0,3).map(u=>`<div style='border-top:2px solid var(--ink);padding:8px 0'><b style='font:700 15px sans-serif'>${esc(u.title)}</b><div class='sm' style='color:#333'>${esc(u.text||'')}${u.date?' \u00b7 '+esc(fd(u.date)):''}</div></div>`).join('')||`<div class='sm'>No updates yet.</div>`;
+  var T=(t,s,bg,v,fg)=>`<div class='tile' style='background:${bg};color:${fg||'#fff'}' onclick='go("${v}")'><b>${t}</b><span>${s}</span></div>`;
+  return head('Hello, '+D.name.split(' ')[0],D.no+' \u00b7 '+D.enrol.map(x=>x.course).join(', '))+`<div class='pad'>${enrolSel()}<div class='card'><div class='row sm'><b class='grow'>${c?sd(c.start)+' \u2013 '+sd(c.end):'This month'}</b><b>${c?c.p:0} / ${TARGET} days</b></div><div style='height:12px;border-radius:6px;background:#fff;border:2px solid var(--ink);margin-top:8px'><div style='width:${pct}%;height:8px;border-radius:4px;background:#00793A'></div></div><div class='sm' style='margin-top:6px'>${c&&c.bonus?c.bonus+' bonus days this month':'Extra days after '+TARGET+' are bonus days'}</div></div>
+<div class='grid'>${T('Attendance','Full record','#0069B4','att')}${T('Materials','PDF downloads','#00793A','learn')}${T('ID card','With QR code','#3A3283','prof')}${T('Certificates','View and verify','#D91C26','prof')}${T('Class rules','Please read','#FFE600','learn','#111')}${T('Brochure','Courses and fees','#FF9A1F','learn','#111')}</div>
+<div style='margin-top:6px'>${about(56)}</div><h2 style='font-size:18px;margin:14px 0 2px'>Class updates</h2>${ups}</div>`}
+function enrolSel(){if(D.enrol.length<2)return '';return `<div class='row' style='flex-wrap:wrap'>${D.enrol.map((x,i)=>`<button class='btn ${i===sel?'i':''}' style='${i===sel?'':'background:#fff;color:#111;border:2px solid #111'}' onclick='sel=${i};render()'>${esc(x.course)}</button>`).join('')}</div>`}
+function vAtt(){var e=D.enrol[sel]||D.enrol[0]||{},cs=e.cycles||[],c=cur(e);if(!c)return head('Attendance',D.no)+`<div class='pad sm'>No attendance yet.</div>`;
+  var S=(n,t,bg,fg)=>`<div style='background:${bg};color:${fg};border-radius:12px;flex:1;text-align:center;padding:10px 2px'><b style='font-size:24px'>${n}</b><div class='sm' style='font-weight:700'>${t}</div></div>`;
+  var cells='',d=pd(c.start),off=(d.getDay()+6)%7,i;for(i=0;i<off;i++)cells+='<span></span>';
+  for(;dstr(d)<=c.end;d.setDate(d.getDate()+1)){var k=dstr(d),cl=d.getDay()===0?'s':(c.off||[]).indexOf(k)>=0?'f':c.P.indexOf(k)>=0?'p':c.A.indexOf(k)>=0?'a':c.L.indexOf(k)>=0?'l':'o';cells+=`<i class='${cl}'>${d.getDate()}</i>`}
+  var older=cs.slice(0,-1).reverse().map(y=>`<div class='row sm' style='margin-top:6px;font-weight:700'><span class='grow'>${sd(y.start)} \u2013 ${sd(y.end)}</span><span>${y.eff} / ${TARGET}${y.done?' \u00b7 complete':''}${y.bonus?' \u00b7 +'+y.bonus+' bonus':''}</span></div>`).join('');
+  return head('Attendance',(e.course||'')+' \u00b7 '+sd(c.start)+' \u2013 '+sd(c.end))+`<div class='pad'>${enrolSel()}<div class='row' style='gap:8px'>${S(c.p,'Present','#00793A','#fff')}${S(c.a,'Absent','#D91C26','#fff')}${S(TARGET,'Target','#3A3283','#fff')}${S(c.bonus||0,'Bonus','#FF9A1F','#111')}</div>
+<div class='card'><div class='cal hdr7'><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div class='cal'>${cells}</div><div class='sm' style='margin-top:10px'>Green present \u00b7 Red absent \u00b7 Orange leave \u00b7 Blue class off \u00b7 Grey Sunday</div></div>${older?`<div class='card' style='background:#FFE600;border-color:#111'><b>Earlier months</b>${older}</div>`:''}</div>`}
+function vLearn(){var cs=D.enrol.map(x=>String(x.course||'').toLowerCase()),mats=(C.materials||[]).filter(m=>!m.course||cs.some(c=>c.indexOf(String(m.course).toLowerCase())>=0||String(m.course).toLowerCase().indexOf(c)>=0));
+  var row=(t,s,u)=>`<div class='card row'><div class='grow'><b style='font:700 15px sans-serif'>${esc(t)}</b><div class='sm'>${esc(s||'')}</div></div><a class='btn' href='${esc(u)}' target='_blank' rel='noopener'>Download</a></div>`;
+  return head('Learn',D.enrol.map(x=>x.course).join(', '))+`<div class='pad'><h2 style='font-size:18px;margin:0'>Course materials</h2>${mats.length?mats.map(m=>row(m.title,m.course?'PDF \u00b7 '+m.course:'PDF',m.url)).join(''):`<div class='card sm'>No materials yet.</div>`}
+<h2 style='font-size:18px;margin:16px 0 0'>Class rules</h2><div class='card' style='background:#FFE600;border-color:#111;white-space:pre-wrap;font:700 14px/1.5 sans-serif'>${esc(C.rules||'No rules published yet.')}</div>
+<h2 style='font-size:18px;margin:16px 0 0'>Brochure</h2>${C.brochure?row('TSM brochure','Courses, batches and fees',C.brochure):`<div class='card sm'>Not available yet.</div>`}
+<div class='card' style='background:var(--ind);color:#fff'><b>On every download</b><div class='sm'>ID card, certificate and materials carry the foundation name: B. S. Tikariya Cultural Foundation (R) \u00b7 CIN ${CIN}</div></div></div>`}
+function vProf(){var ph=D.photo?`<img src='${D.photo}' alt='' style='width:60px;height:60px;border-radius:50%;object-fit:cover'>`:`<img src='${LOGO}' alt='' style='width:60px;height:60px;border-radius:50%;object-fit:cover;background:#fff;border:1px solid #111'>`;
+  var cs=(D.certs||[]).map((c,i)=>`<div style='background:#D91C26;color:#fff;border-radius:14px;padding:12px;margin-top:8px'><b style='font:700 15px sans-serif'>${esc(c.exam)} \u00b7 ${esc(c.course)}</b><div class='sm'>${esc(c.cid)} \u00b7 ${esc(dispDate(c.date))} \u00b7 Grade ${esc(c.grade)}</div><button class='btn' style='background:#fff;color:#B00000;margin-top:8px' onclick='certPdf(${i})'>Download certificate (PDF)</button></div>`).join('')||`<div class='card sm'>No certificate yet.</div>`;
+  var nx=(D.next||[]).filter(n=>n.course).map(n=>`<div class='sm' style='margin-top:4px'><b>${esc(n.course)}</b>: next is ${esc(n.label)} \u00b7 ${n.days}/${n.need} days in this block${n.ok?' \u00b7 eligible, please ask your teacher':''}</div>`).join('');
+  return head('Profile',D.name)+`<div class='pad'><div class='card row'>${ph}<div class='grow'><b>${esc(D.no)}</b><div class='sm'>${D.enrol.map(x=>esc(x.course+(x.batch?' \u00b7 '+x.batch:''))).join('<br>')}</div></div><input id='pf' type='file' accept='image/*' style='display:none' onchange='setPhoto(this)'><button class='btn' onclick='document.getElementById("pf").click()'>Photo</button></div>
+<div class='card' style='background:var(--ind);color:#fff'><div class='row'><img src='${LOGO}' alt='' style='width:34px;height:34px;border-radius:6px'><b class='sm' style='letter-spacing:1px'>TSM \u00b7 ID CARD</b></div><b style='font-size:19px;display:block;margin-top:6px'>${esc(D.name)}</b><div class='sm'>${esc(D.no)}</div><div class='sm' style='margin-top:6px;border-top:1px solid #fff;padding-top:6px'>B. S. Tikariya Cultural Foundation (R)</div></div>
+<button class='btn g' style='width:100%;margin-top:8px' onclick='idPdf()'>Download ID card (PDF)</button>
+<h2 style='font-size:18px;margin:14px 0 0'>Certificates</h2>${cs}${nx?`<div class='card'><b>Next certificate</b>${nx}<div class='sm' style='margin-top:4px'>A certificate comes after every 4 months with at least 48 days.</div></div>`:''}
+<div class='row' style='margin-top:10px;gap:8px'><button class='btn i grow' onclick='chPwd()'>Change password</button><button class='btn r grow' style='border:2px solid #B00000' onclick='logout()'>Log out</button></div></div>`}
+function render(){var el=document.getElementById('app'),sig=view;
+  if(sig!==navSig){navSig=sig;if(!popping){try{history.pushState({i:navStack.length+1,v:view},'');navStack.push(sig)}catch(e){}}}
+  if(!fbReady()){el.innerHTML=`<div class='pad'><h1>TSM</h1><p>The app is not set up yet. Please contact your teacher.</p></div>`;return}
+  if(!U){el.innerHTML=vLogin();return}
+  if(loading){el.innerHTML=`<div class='pad'><p>Loading\u2026</p></div>`;return}
+  if(!D){el.innerHTML=head('TSM','')+`<div class='pad'><div class='card'>${esc(msg)||'Your profile is not ready yet. Please ask your teacher.'}</div><button class='btn r' style='margin-top:12px' onclick='logout()'>Log out</button></div>`;return}
+  if(D.susp){el.innerHTML=head('TSM',D.no)+`<div class='pad'><div class='card'>Your account is suspended. Please contact your teacher.</div><button class='btn r' style='margin-top:12px' onclick='logout()'>Log out</button></div>`;return}
+  el.innerHTML=(view==='att'?vAtt():view==='learn'?vLearn():view==='prof'?vProf():vHome())+nav()}
+window.addEventListener('popstate',function(e){var st=e.state;popping=true;view=(st&&st.v)||'home';navStack.length=st&&st.i?st.i:0;navSig=view;render();popping=false;scrollTo(0,0)});
+if(CP.App&&CP.App.addListener){CP.App.addListener('backButton',function(){if(navStack.length>0)history.back();else CP.App.exitApp()})}
+/* ---------- photo, PDFs ---------- */
+function setPhoto(el){var f=el.files[0];if(!f)return;var r=new FileReader();r.onload=function(){var im=new Image();im.onload=function(){var M=240,s=Math.min(im.width,im.height),c=document.createElement('canvas');c.width=M;c.height=M;c.getContext('2d').drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,M,M);var u=c.toDataURL('image/jpeg',0.72);
+  db.collection('students').doc(D.phone).update({photo:u}).then(function(){D.photo=u;render()}).catch(function(){alert('Could not save the photo. Please check the internet.')})};im.src=r.result};r.readAsDataURL(f)}
+async function savePdfB64(fn,b64){var FS=CP.Filesystem,SH=CP.Share;if(!FS||!SH)throw new Error('Share tools missing');var r=await FS.writeFile({path:fn,data:b64,directory:'CACHE'});await SH.share({title:fn,files:[r.uri],dialogTitle:'Save or send '+fn})}
+function pdfOut(cv,w,h,x,y,name){return new Promise(function(res){(async function(){try{var JS=window.jspdf.jsPDF,pdf=new JS({unit:'mm',format:'a4',orientation:'portrait'});pdf.addImage(cv.toDataURL('image/jpeg',0.95),'JPEG',x,y,w,h);if(w<200){pdf.setFontSize(8);pdf.text('Cut along the card border',x,y+h+5)}
+  var b64=pdf.output('datauristring').split(',')[1];try{await savePdfB64(name,b64)}catch(e){var m=String((e&&e.message)||e);if(m.toLowerCase().indexOf('cancel')>=0){res();return}
+    var bin=atob(b64),u=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u[i]=bin.charCodeAt(i);var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([u],{type:'application/pdf'}));a.download=name;a.click()}}catch(e){alert('Could not make the PDF.')}res()})()})}
+function idPdf(){var adms=D.enrol.map(x=>x.adm).filter(Boolean).sort();TSMR.idcard({base:'',name:D.name,no:D.no,lines:D.enrol.map(x=>(x.course||'')+(x.batch?' \u00b7 '+x.batch:'')),since:adms.length?MN[pd(adms[0]).getMonth()]+' '+pd(adms[0]).getFullYear():'',qr:'TSM|'+D.no,photo:D.photo||''},function(cv){pdfOut(cv,85.6,54,10,10,'IDcard_'+D.no+'.pdf')})}
+function qrFor(c){var b=(C.verifyBase||'').trim();if(b)return b+(b.indexOf('?')<0?'?id=':'')+encodeURIComponent(c.cid);return 'TSM CERTIFICATE\n'+c.cid+'\n'+D.name+'\n'+c.exam+' '+c.course+' | Grade '+c.grade+'\n'+dispDate(c.date)+'\nB. S. Tikariya Cultural Foundation (R)'}
+function certPdf(i){var c=D.certs[i];if(!c)return;TSMR.cert({base:'',name:D.name,exam:c.exam,instrument:c.course,grade:c.grade,date:dispDate(c.date),certId:c.cid,cin:CIN,school:c.school||'',qr:qrFor(c)},function(cv){pdfOut(cv,210,297,0,0,c.cid.replace(/\//g,'-')+'.pdf')})}
+boot();
+</script>
+</body>
+</html>

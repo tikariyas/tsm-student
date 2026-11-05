@@ -1,0 +1,20 @@
+{
+  "name": "tsm-student",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/filesystem": "^6.0.0",
+    "@capacitor/share": "^6.0.0",
+    "@capacitor/app": "^6.0.0",
+    "jspdf": "^2.5.2",
+    "qrcode-generator": "^1.4.4",
+    "firebase": "^10.14.1"
+  },
+  "scripts": {
+    "postinstall": "node prepare-libs.js",
+    "capacitor:sync:after": "node apply-assets.js"
+  }
+}
