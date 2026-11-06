@@ -83,28 +83,42 @@ function cert(o,cb){
       if(o.school){fit(ctx,o.school,'italic #px LibSerif',26,390);ctx.fillStyle=BRN;ctx.fillText(o.school,772,2252)}
       cb(cv)})})})}
 
+function note(ctx,x,y,col,flag){ctx.fillStyle=col;ctx.strokeStyle=col;ctx.save();ctx.translate(x,y);ctx.rotate(-0.35);ctx.scale(1.35,1);ctx.beginPath();ctx.arc(0,0,11,0,6.2832);ctx.fill();ctx.restore();
+  ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(x+14,y-4);ctx.lineTo(x+14,y-58);ctx.stroke();
+  if(flag){ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(x+14,y-58);ctx.quadraticCurveTo(x+40,y-46,x+30,y-22);ctx.stroke()}}
+function beamed(ctx,x,y,col){note(ctx,x,y,col,0);note(ctx,x+42,y-9,col,0);ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(x+14,y-58);ctx.lineTo(x+56,y-67);ctx.stroke()}
+var NC=['#E21F26','#00A1E4','#009846','#EE7B1C','#F5B800','#3A3283'];
 function idcard(o,cb){
   var base=o.base||'',pw=1011,ph=638;
   fontsReady(FONTS,function(){
-    img(base+'img/logo.png',function(vio){var withPhoto=function(photo){
+    img(base+'img/logo.png',function(logo){var withPhoto=function(photo){
       var cv=document.createElement('canvas');cv.width=pw;cv.height=ph;var ctx=cv.getContext('2d'),i;
-      ctx.fillStyle='#f4ead4';ctx.fillRect(0,0,pw,ph);ctx.strokeStyle=INK;ctx.lineWidth=5;rr(ctx,10,10,pw-20,ph-20,22);ctx.stroke();
-      ctx.fillStyle='#3b2314';ctx.save();rr(ctx,14,14,pw-28,140,20);ctx.clip();ctx.fillRect(14,14,pw-28,140);ctx.restore();
-      ctx.fillStyle='#f4ead4';ctx.beginPath();ctx.arc(100,84,58,0,6.2832);ctx.fill();
-      if(vio){ctx.save();ctx.beginPath();ctx.arc(100,84,56,0,6.2832);ctx.clip();ctx.drawImage(vio,44,28,112,112);ctx.restore()}
-      ctx.textAlign='left';ctx.fillStyle='#f4ead4';ctx.font='italic 700 64px LoraI';ctx.fillText('TSM',186,92);ctx.font='400 32px LibSerif';ctx.fillText('Tikariya\u2019s School of Music',186,134);
-      /* photo */
-      ctx.save();ctx.beginPath();ctx.arc(150,340,100,0,6.2832);ctx.clip();
-      if(photo){var s=Math.max(200/photo.width,200/photo.height),dw=photo.width*s,dh=photo.height*s;ctx.drawImage(photo,150-dw/2,340-dh/2,dw,dh)}
-      else{ctx.fillStyle='#ffffff';ctx.fillRect(50,240,200,200);if(vio)ctx.drawImage(vio,50,240,200,200)}
-      ctx.restore();ctx.strokeStyle=INK;ctx.lineWidth=4;ctx.beginPath();ctx.arc(150,340,100,0,6.2832);ctx.stroke();
-      ctx.fillStyle=INK;ctx.textAlign='left';fit(ctx,o.name||'','bold #px LibSerif',48,680);ctx.fillText(o.name||'',280,250);
-      ctx.font='bold 34px LibSerif';ctx.fillStyle=BRN;ctx.fillText('ID: '+o.no,280,300);
-      ctx.fillStyle=INK;ctx.font='400 30px LibSerif';var ls=o.lines||[];for(i=0;i<ls.length&&i<4;i++)ctx.fillText(ls[i],280,352+i*42);
-      ctx.font='italic 24px LibSerif';ctx.fillStyle=BRN;ctx.fillText(o.since?('Since '+o.since):'',50,590);
-      ctx.fillStyle='#faf4e6';rr(ctx,760,352,210,250,12);ctx.fill();ctx.strokeStyle=INK;ctx.lineWidth=3;rr(ctx,760,352,210,250,12);ctx.stroke();
-      if(o.qr)drawQR(ctx,o.qr,772,362,186);
-      ctx.fillStyle=INK;ctx.font='italic 22px LibSerif';ctx.textAlign='center';ctx.fillText('Scan for attendance',865,590);
+      ctx.fillStyle='#ffffff';ctx.fillRect(0,0,pw,ph);
+      ctx.strokeStyle='#3A3283';ctx.lineWidth=6;rr(ctx,8,8,pw-16,ph-16,24);ctx.stroke();
+      if(logo){ctx.save();ctx.beginPath();ctx.arc(95,82,64,0,6.2832);ctx.clip();ctx.drawImage(logo,31,18,128,128);ctx.restore()}
+      ctx.textAlign='left';ctx.fillStyle='#3A3283';ctx.font='bold 40px LibSerif';ctx.fillText('Tikariya\u2019s School of Music',190,66);
+      ctx.fillStyle='#E21F26';ctx.font='bold 20px LibSerif';ctx.fillText('S T U D E N T   I D   C A R D',192,96);
+      ctx.strokeStyle='#B9B5D6';ctx.lineWidth=2;for(i=0;i<5;i++){ctx.beginPath();ctx.moveTo(190,108+i*9);ctx.lineTo(985,108+i*9);ctx.stroke()}
+      note(ctx,745,144,NC[1],1);beamed(ctx,800,136,NC[2]);note(ctx,880,126,NC[3],1);note(ctx,930,144,NC[0],1);
+      var seg=(pw-60)/6;for(i=0;i<6;i++){ctx.fillStyle=NC[i];ctx.fillRect(30+i*seg,166,seg+1,9)}
+      ctx.save();ctx.beginPath();ctx.arc(125,300,86,0,6.2832);ctx.clip();ctx.fillStyle='#ffffff';ctx.fillRect(39,214,172,172);
+      var pic=photo||logo;if(pic){var s=Math.max(172/pic.width,172/pic.height),dw=pic.width*s,dh=pic.height*s;ctx.drawImage(pic,125-dw/2,300-dh/2,dw,dh)}ctx.restore();
+      ctx.strokeStyle='#00A1E4';ctx.lineWidth=7;ctx.beginPath();ctx.arc(125,300,89,0,6.2832);ctx.stroke();
+      ctx.fillStyle='#111111';ctx.textAlign='left';fit(ctx,o.name||'','bold #px LibSerif',44,520);ctx.fillText(o.name||'',238,232);
+      ctx.font='bold 28px LibSerif';ctx.fillStyle='#E21F26';ctx.fillText('ID: '+o.no,238,270);
+      ctx.fillStyle='#111111';ctx.font='400 25px LibSerif';var ls=o.lines||[],y=306;for(i=0;i<ls.length&&i<3;i++){ctx.fillText(ls[i],238,y);y+=31}
+      y=Math.max(y+6,380);ctx.font='400 22px LibSerif';
+      if(o.adm){ctx.font='bold 22px LibSerif';ctx.fillText('Admission: ',238,y);var w1=ctx.measureText('Admission: ').width;ctx.font='400 22px LibSerif';ctx.fillText(o.adm,238+w1,y);y+=31}
+      if(o.school){ctx.font='bold 22px LibSerif';ctx.fillText('School: ',238,y);var w2=ctx.measureText('School: ').width;fit(ctx,o.school,'400 #px LibSerif',22,520-w2);ctx.fillText(o.school,238+w2,y);y+=31}
+      if(o.parent){ctx.font='bold 22px LibSerif';ctx.fillText('Parent mobile: ',238,y);var w3=ctx.measureText('Parent mobile: ').width;ctx.font='400 22px LibSerif';ctx.fillText(o.parent,238+w3,y)}
+      ctx.fillStyle='#ffffff';rr(ctx,790,196,190,190,12);ctx.fill();ctx.strokeStyle='#3A3283';ctx.lineWidth=4;rr(ctx,790,196,190,190,12);ctx.stroke();
+      if(o.qr)drawQR(ctx,o.qr,800,206,170);
+      ctx.fillStyle='#3A3283';ctx.font='italic 20px LibSerif';ctx.textAlign='center';ctx.fillText('Scan for attendance',885,412);
+      note(ctx,822,490,NC[5],1);note(ctx,882,498,NC[4],1);note(ctx,938,488,NC[3],1);
+      ctx.strokeStyle='#EE7B1C';ctx.lineWidth=3;rr(ctx,30,512,pw-60,100,14);ctx.stroke();
+      ctx.textAlign='left';ctx.fillStyle='#E21F26';ctx.font='bold 22px LibSerif';ctx.fillText('If found, please return to:',52,546);
+      ctx.fillStyle='#111111';ctx.font='bold 24px LibSerif';ctx.fillText('Tikariya\u2019s School of Music \u00b7 Mobile: '+(o.tsmPhone||'9821808889'),52,578);
+      ctx.fillStyle='#3A3283';ctx.font='italic 16px LibSerif';ctx.fillText('B. S. Tikariya Cultural Foundation (R)',52,600);
       cb(cv)};
       if(o.photo)img(o.photo,withPhoto);else withPhoto(null)})})}
 return {cert:cert,idcard:idcard}})();
